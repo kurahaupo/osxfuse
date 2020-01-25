@@ -173,7 +173,7 @@ function build_target_getopt
         local -a build_settings=()
         local -a macros=()
 
-        while (( ${#} > 0 ))
+        while (( } > 0 ))
         do
             case "${1}" in
                 --)
@@ -358,7 +358,7 @@ function build_target_xcodebuild
                       CODE_SIGN_IDENTITY="${BUILD_TARGET_OPTION_CODE_SIGN_IDENTITY}"
                       PROVISIONING_PROFILE_SPECIFIER="${BUILD_TARGET_OPTION_PROVISIONING_PROFILE_SPECIFIER}"
                       "${BUILD_TARGET_OPTION_BUILD_SETTINGS[@]}")
-    if (( ${#BUILD_TARGET_OPTION_MACROS} > 0 ))
+    if (( ${#BUILD_TARGET_OPTION_MACROS[@]} > 0 ))
     then
         command+=( GCC_PREPROCESSOR_DEFINITIONS="\$(inherited)$( printf " %q" "${BUILD_TARGET_OPTION_MACROS[@]}" )" )
     fi
@@ -835,7 +835,7 @@ function build_main
     then
         common_die "No version of Xcode found"
     fi
-    if (( ${#XCODE_SDK_INSTALLED} == 0 ))
+    if (( ${#XCODE_SDK_INSTALLED[@]} == 0 ))
     then
         common_die "No supported macOS SDK installed"
     fi
