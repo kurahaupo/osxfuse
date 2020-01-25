@@ -334,7 +334,7 @@ function build_target_getopt
     }
 
     eval "$( build_target_getopt_internal "${@}" )"
-    unset build_target_getopt_internal
+    unset -f build_target_getopt_internal
 
     common_log_variable ${!BUILD_TARGET_OPTION_@}
     build_target_sanity_check
@@ -874,7 +874,7 @@ function build_main
             DEFAULT_SDK=""
             array_foreach XCODE_SDK_INSTALLED build_main_default_sdk
 
-            unset build_main_default_sdk
+            unset -f build_main_default_sdk
 
             common_assert "[[ -n $( string_escape "${DEFAULT_SDK}" ) ]]"
             common_warn "Falling back to macOS ${DEFAULT_SDK} SDK as default SDK"
