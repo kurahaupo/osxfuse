@@ -27,6 +27,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+PATH=/bin:/usr/bin:$PATH
+
 
 function build_target_get_build_directory
 {
@@ -63,19 +65,19 @@ function build_target_sanity_check
         fi
     }
     array_foreach BUILD_TARGET_OPTION_ARCHITECTURES build_target_sanity_check_build_achitecture
-    unset build_target_sanity_check_build_achitecture
+    unset -f build_target_sanity_check_build_achitecture
 
     if ! version_is_version "${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}"
     then
         common_die "Deployment target is illegal"
     fi
-    version_compare "${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}" 10.0
-    if (( ${?} == 1 ))
+    if version_compare "${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}" 10.0
+       (( ${?} == 1 ))
     then
         common_die "Deployment target must be at least macOS 10.0"
     fi
-    version_compare "${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}" "${BUILD_TARGET_OPTION_SDK}"
-    if (( ${?} == 2 ))
+    if version_compare "${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}" "${BUILD_TARGET_OPTION_SDK}"
+       (( ${?} == 2 ))
     then
         common_die "macOS ${BUILD_TARGET_OPTION_SDK} SDK does not support macOS ${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET} as deployment target"
     fi
@@ -102,7 +104,7 @@ function build_target_getopt
         local handler=""
         local out=""
 
-        while [[ ${#} -gt 0 ]]
+        while (( ${#} > 0 ))
         do
             case "${1}" in
                 --)
@@ -130,7 +132,7 @@ function build_target_getopt
 
         if [[ -n "${out}" ]]
         then
-            common_assert "common_is_variable `string_escape "${out}"`"
+            common_assert "common_is_variable $( string_escape "${out}" )"
         fi
 
         local preset_specs=""
@@ -155,13 +157,8 @@ function build_target_getopt
                 ;;
         esac
 
-        local specs=""
-        if [[ -n "${preset_specs}" && -n "${custom_specs}" ]]
-        then
-            specs="${preset_specs},${custom_specs}"
-        else
-            specs="${preset_specs}${custom_specs}"
-        fi
+        local specs=specs="${preset_specs},${custom_specs}"
+        specs=${specs#,} specs=${specs%,}
 
         common_getopt options "${specs}" "${@:1}"
         common_die_on_error "${options[@]}"
@@ -176,7 +173,7 @@ function build_target_getopt
         local -a build_settings=()
         local -a macros=()
 
-        while [[ ${#} -gt 0 ]]
+        while (( ${#} > 0 ))
         do
             case "${1}" in
                 --)
@@ -268,7 +265,7 @@ function build_target_getopt
             esac
         done
 
-        if [[ -z "${out}" && ${#} -gt 0 ]]
+        if [[ -z "${out}" ]] && (( ${#} > 0 ))
         then
             common_warn "Action '${BUILD_TARGET_ACTION}' of target '${BUILD_TARGET_NAME}' does not expect any arguments"
         fi
@@ -287,7 +284,7 @@ function build_target_getopt
             array_get XCODE_SDK_${BUILD_TARGET_OPTION_SDK//./_}_XCODE 0 BUILD_TARGET_OPTION_XCODE
         fi
 
-        if [[ ${#architectures[@]} -gt 0 ]]
+        if (( ${#architectures[@]} > 0 ))
         then
             common_variable_clone architectures BUILD_TARGET_OPTION_ARCHITECTURES
         elif xcode_sdk_is_supported "${BUILD_TARGET_OPTION_SDK}"
@@ -305,12 +302,12 @@ function build_target_getopt
             BUILD_TARGET_OPTION_BUILD_CONFIGURATION="${build_configuration}"
         fi
 
-        if [[ ${#build_settings[@]} -gt 0 ]]
+        if (( ${#build_settings[@]} > 0 ))
         then
             common_variable_clone build_settings BUILD_TARGET_OPTION_BUILD_SETTINGS
         fi
 
-        if [[ ${#macros[@]} -gt 0 ]]
+        if (( ${#macros[@]} > 0 ))
         then
             common_variable_clone macros BUILD_TARGET_OPTION_MACROS
         fi
@@ -324,8 +321,8 @@ function build_target_getopt
             printf "\n"
         fi
 
-        local target_name_uppercase="`string_uppercase <<< "${BUILD_TARGET_NAME}"`"
-        for variable in ${!BUILD_TARGET_OPTION_@} `common_variable_expand "${target_name_uppercase}_"`
+        local target_name_uppercase="$( string_uppercase <<< "${BUILD_TARGET_NAME}" )"
+        for variable in ${!BUILD_TARGET_OPTION_@} $( common_variable_expand "${target_name_uppercase}_" )
         do
             if ! common_variable_is_readonly "${variable}"
             then
@@ -336,13 +333,13 @@ function build_target_getopt
         return 0
     }
 
-    eval "`build_target_getopt_internal "${@}"`"
+    eval "$( build_target_getopt_internal "${@}" )"
     unset build_target_getopt_internal
 
     common_log_variable ${!BUILD_TARGET_OPTION_@}
     build_target_sanity_check
 
-    DEVELOPER_DIR="`xcode_get_path "${BUILD_TARGET_OPTION_XCODE}"`"
+    DEVELOPER_DIR="$( xcode_get_path "${BUILD_TARGET_OPTION_XCODE}" )"
     export DEVELOPER_DIR
 }
 
@@ -351,19 +348,19 @@ function build_target_xcodebuild
     local compiler=""
     common_variable_clone "DEFAULT_SDK_${BUILD_TARGET_OPTION_SDK//./_}_COMPILER" compiler
 
-    local -a command=(/usr/bin/xcodebuild
+    local -a command=(xcodebuild
                       -configuration "${BUILD_TARGET_OPTION_BUILD_CONFIGURATION}"
-                      CONFIGURATION_BUILD_DIR="`build_target_get_build_directory "${BUILD_TARGET_NAME}"`"
+                      CONFIGURATION_BUILD_DIR="$( build_target_get_build_directory "${BUILD_TARGET_NAME}" )"
                       SDKROOT="macosx${BUILD_TARGET_OPTION_SDK}"
-                      ARCHS="`array_join BUILD_TARGET_OPTION_ARCHITECTURES " "`"
+                      ARCHS="$( array_join BUILD_TARGET_OPTION_ARCHITECTURES " " )"
                       GCC_VERSION="${compiler}"
                       MACOSX_DEPLOYMENT_TARGET="${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}"
                       CODE_SIGN_IDENTITY="${BUILD_TARGET_OPTION_CODE_SIGN_IDENTITY}"
                       PROVISIONING_PROFILE_SPECIFIER="${BUILD_TARGET_OPTION_PROVISIONING_PROFILE_SPECIFIER}"
                       "${BUILD_TARGET_OPTION_BUILD_SETTINGS[@]}")
-    if [[ ${#BUILD_TARGET_OPTION_MACROS} -gt 0 ]]
+    if (( ${#BUILD_TARGET_OPTION_MACROS} > 0 ))
     then
-        command+=(GCC_PREPROCESSOR_DEFINITIONS="\$(inherited)`printf " %q" "${BUILD_TARGET_OPTION_MACROS[@]}"`")
+        command+=( GCC_PREPROCESSOR_DEFINITIONS="\$(inherited)$( printf " %q" "${BUILD_TARGET_OPTION_MACROS[@]}" )" )
     fi
     command+=("${@}")
 
@@ -372,7 +369,7 @@ function build_target_xcodebuild
 
 function build_target_configure
 {
-    local sdk_path="`xcodebuild -version -sdk macosx${BUILD_TARGET_OPTION_SDK} Path 2>&4`"
+    local sdk_path="$( xcodebuild -version -sdk macosx${BUILD_TARGET_OPTION_SDK} Path 2>&4 )"
     if [[ "${sdk_path}" =~ [[:space:]] ]]
     then
         common_die "macOS ${BUILD_TARGET_OPTION_SDK} SDK path '${sdk_path}' contains whitespace"
@@ -399,13 +396,13 @@ function build_target_configure
 
     for macro in "${BUILD_TARGET_OPTION_MACROS[@]}"
     do
-        common_assert "[[ `string_escape "${macro}"` =~ ^[^[:space:]]*$ ]]" "Macro '${macro//\'/\\\'}' contains whitespace"
+        common_assert "[[ $( string_escape "${macro}" ) =~ ^[^[:space:]]*$ ]]" "Macro '${macro//\'/\\\'}' contains whitespace"
     done
 
-    MAKE="`/usr/bin/xcrun --find make`" \
-    CPP="`/usr/bin/xcrun --find cpp`" \
-    CC="`/usr/bin/xcrun --find "${compiler_binary}"`" \
-    LD="`/usr/bin/xcrun --find ld`" \
+    MAKE="$( xcrun --find make )" \
+    CPP="$( /usr/bin/xcrun --find cpp )" \
+    CC="$( /usr/bin/xcrun --find "${compiler_binary}" )" \
+    LD="$( /usr/bin/xcrun --find ld )" \
     CPPFLAGS="-Wp,-isysroot,${sdk_path} ${CPPFLAGS}" \
     CFLAGS="${BUILD_TARGET_OPTION_ARCHITECTURES[@]/#/-arch } -isysroot ${sdk_path} -mmacosx-version-min=${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}${BUILD_TARGET_OPTION_MACROS[@]/#/ -D} ${CFLAGS}" \
     LDFLAGS="-Wl,-syslibroot,${sdk_path} -Wl,-macosx_version_min,${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET} ${LDFLAGS}" \
@@ -422,7 +419,7 @@ function build_target_make
 
     local -i root="${BUILD_TARGET_OPTION_ROOT}"
 
-    while [[ ${#} -gt 0 ]]
+    while (( ${#} > 0 ))
     do
         case "${1}" in
             --)
@@ -475,21 +472,21 @@ function build_target_pkgbuild
 
 function build_target_pkgbuild_component_plist_foreach
 {
-    common_assert "common_is_function `string_escape "${3}"`"
-    common_assert "[[ ! `string_escape "${3}"` =~ ^bt_pkgbuild_component_plist_foreach_ ]]"
+    common_assert "common_is_function $( string_escape "${3}" )"
+    common_assert "[[ ! $( string_escape "${3}" ) =~ ^bt_pkgbuild_component_plist_foreach_ ]]"
 
-    if [[ "`plist_array_size "${1}" "${2}"`" -gt 0 ]]
+    if (( "$( plist_array_size "${1}" "${2}" )" > 0 ))
     then
         eval "
             function build_target_pkgbuild_component_plist_foreach_internal
             {
-                while [[ \${#} -gt 0 ]]
+                while (( \${#} > 0 ))
                 do
-                    ${3} `string_escape "${1}"` ${2}:\${1}
+                    ${3} $( string_escape "${1}" ) ${2}:\${1}
 
-                    if /usr/libexec/PlistBuddy -c \"Print '${2}:\${1}:ChildBundles'\" `string_escape "${1}"` > /dev/null 2>&1
+                    if /usr/libexec/PlistBuddy -c \"Print '${2}:\${1}:ChildBundles'\" $( string_escape "${1}" ) > /dev/null 2>&1
                     then
-                        build_target_pkgbuild_component_plist_foreach `string_escape "${1}"` \"${2}:\${1}:ChildBundles\" ${3}
+                        build_target_pkgbuild_component_plist_foreach $( string_escape "${1}" ) \"${2}:\${1}:ChildBundles\" ${3}
                     fi
                     shift
                 done
@@ -524,7 +521,7 @@ function build_target_install
     local    owner="${BUILD_TARGET_OPTION_OWNER}"
     local    group="${BUILD_TARGET_OPTION_GROUP}"
 
-    while [[ ${#} -gt 0 ]]
+    while (( ${#} > 0 ))
     do
         case "${1}" in
             --)
@@ -549,14 +546,14 @@ function build_target_install
     local source="${1}"
     local target_directory="${2}"
 
-    common_assert "[[ -e `string_escape "${source}"` ]]"
-    common_assert "[[ -d `string_escape "${target_directory}"` ]]"
+    common_assert "[[ -e $( string_escape "${source}" ) ]]"
+    common_assert "[[ -d $( string_escape "${target_directory}" ) ]]"
 
     local target="${target_directory}"
     if [[ ! "${source}" =~ /$ ]]
     then
-        target="${target}/`basename "${source}"`"
-        common_assert "[[ ! -e `string_escape "${target}"` ]]" "Target is already installed"
+        target="${target}/$( basename "${source}" )"
+        common_assert "[[ ! -e $( string_escape "${target}" ) ]]" "Target is already installed"
     fi
 
     local -a command=(/bin/cp -pPR "${source}" "${target}")
@@ -582,8 +579,8 @@ function build_target_invoke
 
     local target_path="${BUILD_D_DIRECTORY}/targets/${target_name}.sh"
 
-    common_assert "common_function_is_legal_name `string_escape "${target_name}"`"
-    common_assert "[[ -f `string_escape "${target_path}"` ]]" "Target '${target_name}' does not exist"
+    common_assert "common_function_is_legal_name $( string_escape "${target_name}" )"
+    common_assert "[[ -f $( string_escape "${target_path}" ) ]]" "Target '${target_name}' does not exist"
 
     (
         eval "
@@ -632,7 +629,7 @@ function build_target_invoke
 
         declare -a  BUILD_TARGET_ACTIONS=()
         declare     BUILD_TARGET_SOURCE_DIRECTORY="${BUILD_SOURCE_DIRECTORY}"
-        declare     BUILD_TARGET_BUILD_DIRECTORY="`build_target_get_build_directory "${BUILD_TARGET_NAME}"`"
+        declare     BUILD_TARGET_BUILD_DIRECTORY="$( build_target_get_build_directory "${BUILD_TARGET_NAME}" )"
 
         # Options
 
@@ -665,10 +662,10 @@ function build_target_invoke
         common_die_on_error "Failed to source target"
 
         common_assert "array_is_array BUILD_TARGET_ACTIONS"
-        common_assert "array_contains BUILD_TARGET_ACTIONS `string_escape "${BUILD_TARGET_ACTION}"`" \
+        common_assert "array_contains BUILD_TARGET_ACTIONS $( string_escape "${BUILD_TARGET_ACTION}" )" \
                       "Unsupported target action: '${BUILD_TARGET_ACTION}'"
 
-        declare DEVELOPER_DIR="`xcode_get_path "${BUILD_TARGET_OPTION_XCODE}"`"
+        declare DEVELOPER_DIR="$( xcode_get_path "${BUILD_TARGET_OPTION_XCODE}" )"
         export DEVELOPER_DIR
 
         # Invoke target action
@@ -702,7 +699,7 @@ function build_clean
 
 function build_help
 {
-    local script="`basename "${BASH_SOURCE[0]}"`"
+    local script="$( basename "${BASH_SOURCE[0]}" )"
 
 /bin/cat <<EOF
 Copyright (c) 2011-2015 Benjamin Fleischer
@@ -716,14 +713,14 @@ Usage:     ${script} [options ...] (-h|--help)  [(-t|--target) {target name}]
 
 Options:   [-v {verbose level}|--verbose={verbose level}]
 
-Installed Xcode versions: `array_join XCODE_INSTALLED ", "`
-Installed macOS SDKs:     `array_join XCODE_SDK_INSTALLED ", "`
+Installed Xcode versions: $( array_join XCODE_INSTALLED ", " )
+Installed macOS SDKs:     $( array_join XCODE_SDK_INSTALLED ", " )
 EOF
 }
 
 function build_main
 {
-    local build_d_directory="`dirname "${BASH_SOURCE[0]}"`/build.d"
+    local build_d_directory="$( dirname "${BASH_SOURCE[0]}" )/build.d"
 
     # Source libraries
 
@@ -739,7 +736,7 @@ function build_main
     common_log_initialize
     common_signal_trap_initialize
 
-    declare -r BUILD_D_DIRECTORY="`common_path_absolute "${build_d_directory}"`"
+    declare -r BUILD_D_DIRECTORY="$( common_path_absolute "${build_d_directory}" )"
 
     # Source defaults
 
@@ -782,7 +779,7 @@ function build_main
     local    target_name=""
     local    action="build"
 
-    while [[ ${#} -gt 0 ]]
+    while (( ${#} > 0 ))
     do
         case "${1}" in
             --)
@@ -802,11 +799,11 @@ function build_main
                 shift 2
                 ;;
             -s|--source-directory)
-                BUILD_SOURCE_DIRECTORY="`common_path_absolute "${2}"`"
+                BUILD_SOURCE_DIRECTORY="$( common_path_absolute "${2}" )"
                 shift 2
                 ;;
             -b|--build-directory)
-                BUILD_BUILD_DIRECTORY="`common_path_absolute "${2}"`"
+                BUILD_BUILD_DIRECTORY="$( common_path_absolute "${2}" )"
                 shift 2
                 ;;
             -t|--target)
@@ -820,7 +817,7 @@ function build_main
         esac
     done
 
-    if ! math_is_integer "${verbose}" || [[ ${verbose} -lt 1 ]]
+    if ! math_is_integer "${verbose}" || (( ${verbose} < 1 ))
     then
         common_die "Verbosity must be a positive integer"
     fi
@@ -834,11 +831,11 @@ function build_main
 
     xcode_find
 
-    if [[ ${#XCODE_INSTALLED[@]} -eq 0 ]]
+    if (( ${#XCODE_INSTALLED[@]} == 0 ))
     then
         common_die "No version of Xcode found"
     fi
-    if [[ ${#XCODE_SDK_INSTALLED} -eq 0 ]]
+    if (( ${#XCODE_SDK_INSTALLED} == 0 ))
     then
         common_die "No supported macOS SDK installed"
     fi
@@ -856,7 +853,7 @@ function build_main
         then
             common_die "Default macOS SDK not available"
         else
-            local macos_version="`macos_get_version`"
+            local macos_version="$( macos_get_version )"
 
             function build_main_default_sdk
             {
@@ -879,7 +876,7 @@ function build_main
 
             unset build_main_default_sdk
 
-            common_assert "[[ -n `string_escape "${DEFAULT_SDK}"` ]]"
+            common_assert "[[ -n $( string_escape "${DEFAULT_SDK}" ) ]]"
             common_warn "Falling back to macOS ${DEFAULT_SDK} SDK as default SDK"
         fi
     fi
@@ -897,7 +894,7 @@ function build_main
     do
         if [[ -f "${library_path}" ]]
         then
-            local extension_basename="`basename "${extension_path}"`"
+            local extension_basename="$( basename "${extension_path}" )"
             local extension_name="${extension_basename%.*}"
 
             common_log -v 3 "Source extension ${extension_name}"
