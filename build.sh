@@ -400,9 +400,9 @@ function build_target_configure
     done
 
     MAKE="$( xcrun --find make )" \
-    CPP="$( /usr/bin/xcrun --find cpp )" \
-    CC="$( /usr/bin/xcrun --find "${compiler_binary}" )" \
-    LD="$( /usr/bin/xcrun --find ld )" \
+    CPP="$(  xcrun --find cpp )" \
+    CC="$(   xcrun --find "${compiler_binary}" )" \
+    LD="$(   xcrun --find ld )" \
     CPPFLAGS="-Wp,-isysroot,${sdk_path} ${CPPFLAGS}" \
     CFLAGS="${BUILD_TARGET_OPTION_ARCHITECTURES[@]/#/-arch } -isysroot ${sdk_path} -mmacosx-version-min=${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET}${BUILD_TARGET_OPTION_MACROS[@]/#/ -D} ${CFLAGS}" \
     LDFLAGS="-Wl,-syslibroot,${sdk_path} -Wl,-macosx_version_min,${BUILD_TARGET_OPTION_DEPLOYMENT_TARGET} ${LDFLAGS}" \
@@ -437,7 +437,7 @@ function build_target_make
         esac
     done
 
-    local -a command=(/usr/bin/xcrun make "${@}")
+    local -a command=( xcrun make "${@}" )
     if (( root == 0 ))
     then
         "${command[@]}" 1>&3 2>&4
@@ -450,7 +450,7 @@ function build_target_codesign
 {
     if [[ -n "${BUILD_TARGET_OPTION_CODE_SIGN_IDENTITY}" ]]
     then
-        /usr/bin/codesign -s "${BUILD_TARGET_OPTION_CODE_SIGN_IDENTITY}" -f "${@}" 1>&3 2>&4
+        codesign -s "${BUILD_TARGET_OPTION_CODE_SIGN_IDENTITY}" -f "${@}" 1>&3 2>&4
     else
         return 0
     fi
@@ -458,7 +458,7 @@ function build_target_codesign
 
 function build_target_pkgbuild
 {
-    local command=(/usr/bin/pkgbuild)
+    local command=( pkgbuild )
 
     if [[ -n "${BUILD_TARGET_OPTION_PRODUCT_SIGN_IDENTITY}" ]]
     then
@@ -491,13 +491,13 @@ function build_target_pkgbuild_component_plist_foreach
                     shift
                 done
             }
-        " && build_target_pkgbuild_component_plist_foreach_internal $(/usr/bin/jot - 0 $(( $(plist_array_size "${1}" "${2}") - 1 )))
+        " && build_target_pkgbuild_component_plist_foreach_internal $( jot - 0 $(( $(plist_array_size "${1}" "${2}") - 1 )) )
     fi
 }
 
 function build_target_productbuild
 {
-    local command=(/usr/bin/productbuild)
+    local command=( productbuild )
 
     if [[ -n "${BUILD_TARGET_OPTION_PRODUCT_SIGN_IDENTITY}" ]]
     then
@@ -556,7 +556,7 @@ function build_target_install
         common_assert "[[ ! -e $( string_escape "${target}" ) ]]" "Target is already installed"
     fi
 
-    local -a command=(/bin/cp -pPR "${source}" "${target}")
+    local -a command=( cp -pPR "${source}" "${target}" )
     if (( root == 0 ))
     then
         "${command[@]}" 1>&3 2>&4
@@ -701,7 +701,7 @@ function build_help
 {
     local script="$( basename "${BASH_SOURCE[0]}" )"
 
-/bin/cat <<EOF
+cat <<EOF
 Copyright (c) 2011-2015 Benjamin Fleischer
 All rights reserved.
 
