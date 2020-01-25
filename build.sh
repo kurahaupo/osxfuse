@@ -157,7 +157,7 @@ function build_target_getopt
                 ;;
         esac
 
-        local specs=specs="${preset_specs},${custom_specs}"
+        local specs="${preset_specs},${custom_specs}"
         specs=${specs#,} specs=${specs%,}
 
         common_getopt options "${specs}" "${@:1}"
